@@ -1,0 +1,177 @@
+# [Flutter User App] Desain Interaksi Tombol Generate dan Tampilan QR Code Deposit
+
+Dokumen ini merangkum diskusi, analisis, dan rekomendasi desain untuk fitur pembuatan dan penampilan QR Code token deposit RVM dalam Aplikasi User Flutter. Tujuannya adalah menciptakan pengalaman pengguna yang intuitif, jelas, dan meminimalkan potensi kesalahan saat proses pemindaian di mesin RVM.
+
+## Latar Belakang
+
+Pengguna Aplikasi User memerlukan cara untuk men-generate token RVM sementara yang akan dikonversi menjadi QR Code. QR Code ini kemudian dipindai oleh mesin RVM fisik untuk otentikasi sesi deposit. Desain interaksi ini harus mempertimbangkan kemudahan penggunaan, kejelasan informasi (terutama masa berlaku token), dan optimalisasi untuk proses pemindaian.
+
+## Analisis Opsi Desain dan Rekomendasi Akhir
+
+Setelah beberapa iterasi diskusi, kita menyepakati pendekatan yang menggabungkan kejelasan, fokus, dan kontrol pengguna.
+
+### Pendekatan yang Dipilih: FAB Terintegrasi, Area Tampilan QR In-Page, Tombol FAB Dinamis sebagai Timer
+
+**1. Tombol Aksi Utama (FAB Terintegrasi):**
+    *   **Deskripsi:** Sebuah `FloatingActionButton.extended` dengan ikon QR (`Icons.qr_code_scanner`) dan teks (misalnya, "SCAN SAYA") akan ditempatkan di tengah bawah layar (`FloatingActionButtonLocation.centerDocked`), terintegrasi dengan `BottomAppBar` yang memiliki lekukan (`CircularNotchedRectangle`). `BottomAppBar` ini akan berisi item navigasi utama lainnya (Home, Statistik, Riwayat, Profil).
+    *   **Alasan:**
+        *   **Aksesibilitas Tinggi:** Tombol aksi utama mudah dijangkau.
+        *   **Pola Umum:** Desain bottom navigation dengan FAB tengah adalah pola yang familiar bagi pengguna mobile.
+        *   **Estetika Modern:** Memberikan tampilan aplikasi yang modern.
+    *   **Sample (Struktur `Scaffold` di `HomeScreen`):**
+        ```dart
+        // Di HomeScreen build() method
+        Scaffold(
+          appBar: AppBar(title: const Text('RVM Home')),
+          body: /* ... Konten utama HomeScreen termasuk Area QR ... */,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _handleQrFabPress, // Metode untuk menangani aksi FAB
+            label: Text(_fabLabel), // Teks FAB akan dinamis (SCAN SAYA / Timer)
+            icon: const Icon(Icons.qr_code_scanner),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: BottomAppBar(
+            shape: const CircularNotchedRectangle(),
+            notchMargin: 8.0,
+            child: Row( /* ... Item navigasi lainnya ... */ ),
+          ),
+        )
+        ```
+
+**2. Area Tampilan QR Code (In-Page, Bukan Popup Penuh):**
+    *   **Deskripsi:** Di dalam `body` `HomeScreen`, akan ada `Container` atau `Card` khusus yang didedikasikan untuk menampilkan QR Code atau placeholder-nya.
+        *   **Kondisi Default/Setelah Expired:** Area ini menampilkan gambar placeholder (misalnya, ikon QR besar berwarna abu-abu) dan teks instruksi seperti "Tekan tombol 'SCAN SAYA' di bawah untuk menampilkan Kode Deposit RVM Anda."
+        *   **Saat QR Aktif:** Placeholder diganti dengan `QrImageView` yang menampilkan QR Code hasil generate, dan di bawahnya ditambahkan teks instruksi "Arahkan kode ini ke kamera mesin RVM. Sistem akan membaca kode Anda secara otomatis."
+    *   **Alasan:**
+        *   **UX Lebih Halus:** Menghindari popup penuh yang bisa menutupi seluruh layar dan terasa mengganggu. Transisi terjadi di area yang sudah dikenal pengguna.
+        *   **Konteks Tetap Terjaga:** Pengguna masih melihat sebagian dari `HomeScreen` di sekeliling area QR.
+        *   **Fokus:** Meskipun in-page, area ini akan menjadi pusat perhatian saat QR aktif.
+    *   **Sample (Widget untuk Area QR di `HomeScreen`):**
+        ```dart
+        // Di _HomeScreenState, metode _buildQrArea()
+        Widget _buildQrArea() {
+          if (_isGeneratingToken) { // State saat token sedang digenerate
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (_activeRvmToken != null && _timeLeft.inSeconds > 0) { // Saat QR aktif
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Kode Deposit Anda", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                QrImageView(data: _activeRvmToken!, version: QrVersions.auto, size: 200.0),
+                const SizedBox(height: 15),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Text(
+                    "Arahkan kode ini ke kamera mesin RVM. Sistem akan membaca kode Anda secara otomatis.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                ),
+              ],
+            );
+          } else { // Placeholder atau setelah expired
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.qr_code_scanner_rounded, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 10),
+                Text(
+                  _activeRvmToken == null && _timeLeft.inSeconds == 0 
+                      ? "Kode sudah tidak berlaku.\nTekan 'SCAN SAYA' untuk generate baru." 
+                      : "Tekan tombol 'SCAN SAYA' untuk menampilkan Kode Deposit.",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            );
+          }
+        }
+        ```
+
+**3. Tombol FAB Dinamis sebagai Timer Mundur:**
+    *   **Deskripsi:**
+        *   Saat QR Code belum aktif atau sudah expired, teks pada FAB adalah "SCAN SAYA" (atau "Generate Kode").
+        *   Setelah QR Code berhasil di-generate dan ditampilkan, teks pada FAB **berubah menjadi timer hitung mundur** (misalnya, "Berlaku: 04:59"). Font timer dibuat cukup besar dan jelas.
+        *   Selama timer berjalan, FAB mungkin di-disable untuk sementara waktu (misalnya, beberapa detik pertama) untuk mencegah klik ganda yang tidak disengaja, atau tetap aktif dengan fungsi untuk men-generate token baru (mereset timer).
+        *   Setelah timer habis, teks FAB kembali menjadi "SCAN SAYA".
+    *   **Alasan:**
+        *   **Feedback Langsung dan Jelas:** Pengguna tahu persis berapa lama kode QR mereka valid tanpa perlu mencari informasi timer di tempat lain.
+        *   **Efisiensi Ruang:** Menggunakan elemen UI yang sudah ada (FAB) untuk fungsi ganda.
+    *   **Sample (Logika Teks FAB di `HomeScreen` `build()` method):**
+        ```dart
+        // Di _HomeScreenState, di dalam build() untuk floatingActionButton label:
+        // label: Text(
+        //   _isGeneratingToken 
+        //       ? "Memproses..." 
+        //       : (_activeRvmToken != null && _timeLeft.inSeconds > 0
+        //           ? "${_timeLeft.inMinutes.toString().padLeft(2, '0')}:${(_timeLeft.inSeconds % 60).toString().padLeft(2, '0')}"
+        //           : "SCAN SAYA"
+        //         )
+        // )
+        ```
+
+**4. Kontrol Pencahayaan Layar dengan Izin Pengguna:**
+    *   **Deskripsi:**
+        1.  Saat pengguna pertama kali menekan FAB "SCAN SAYA":
+        2.  Aplikasi menampilkan `AlertDialog` yang meminta izin untuk sementara waktu meningkatkan kecerahan layar guna optimalisasi scan QR. Pilihan: "Tolak", "Izinkan".
+        3.  Jika pengguna "Izinkan": Simpan tingkat kecerahan saat ini, lalu naikkan kecerahan layar ke maksimum menggunakan package seperti `screen_brightness`.
+        4.  Lanjutkan ke proses generate token dan tampilkan QR.
+        5.  Jika pengguna "Tolak": Lanjutkan generate token dan tampilkan QR dengan kecerahan layar saat ini.
+        6.  Setelah QR tidak lagi ditampilkan (timer habis, scan sukses, atau pengguna navigasi), kembalikan kecerahan layar ke tingkat semula (jika sebelumnya diubah).
+    *   **Alasan:**
+        *   **Transparansi & Kontrol Pengguna:** Memberi tahu pengguna mengapa perubahan pengaturan sistem diperlukan dan memberi mereka pilihan.
+        *   **Optimalisasi Scan:** Layar yang lebih cerah sangat membantu keterbacaan QR code oleh kamera RVM.
+    *   **Implementasi (Konsep di dalam metode yang dipanggil FAB):**
+        ```dart
+        // Future<void> _handleQrFabPress() async {
+        //   bool brightnessPermissionGranted = await _askForBrightnessPermissionIfNeeded(); 
+        //   double? originalBrightness;
+        //
+        //   if (brightnessPermissionGranted) {
+        //     originalBrightness = await screenBrightness.current;
+        //     await screenBrightness.setScreenBrightness(1.0);
+        //   }
+        //   
+        //   // ... (lanjutkan dengan _generateAndDisplayToken) ...
+        //   // Setelah QR selesai:
+        //   // if (brightnessPermissionGranted && originalBrightness != null) {
+        //   //   await screenBrightness.setScreenBrightness(originalBrightness);
+        //   // }
+        // }
+        ```
+
+**5. Notifikasi Sukses Scan (via Polling):**
+    *   **Deskripsi:** Setelah QR Code ditampilkan, Aplikasi User secara periodik (misalnya, setiap 7-10 detik) memanggil endpoint API backend (`/api/user/check-rvm-scan-status?token=<rvm_login_token>`).
+    *   Jika backend mengkonfirmasi token telah berhasil divalidasi oleh RVM:
+        *   Aplikasi User menampilkan dialog/popup "Scan Berhasil!" (mirip `input_file_1.png`).
+        *   Timer QR dan polling dihentikan.
+        *   Area QR kembali ke placeholder.
+        *   Kecerahan layar dikembalikan.
+    *   **Alasan:** Memberikan feedback langsung kepada pengguna di aplikasi mereka bahwa proses di RVM telah berhasil diterima.
+    *   **Pertimbangan:** Polling harus diimplementasikan dengan hati-hati agar berhenti saat tidak diperlukan lagi (QR ditutup, timer habis, navigasi).
+
+## Alur Pengguna yang Disempurnakan
+
+1.  Pengguna di `HomeScreen` menekan FAB "SCAN SAYA".
+2.  (Jika pertama kali atau belum ada izin) Muncul dialog meminta izin untuk meningkatkan kecerahan layar. Pengguna memilih.
+3.  FAB menampilkan loading. API dipanggil untuk generate token.
+4.  Setelah token diterima:
+    *   Kecerahan layar disesuaikan (jika diizinkan).
+    *   Area QR di `HomeScreen` menampilkan gambar QR Code baru dan teks instruksi.
+    *   Tombol FAB berubah menjadi timer mundur (misalnya, "05:00").
+    *   Polling status scan dimulai.
+5.  Pengguna mengarahkan QR Code ke mesin RVM.
+6.  **Alternatif Penyelesaian:**
+    *   **Scan Sukses:** Polling mendeteksi token sudah divalidasi. Aplikasi User menampilkan popup "Scan Berhasil!". Timer, polling dihentikan. Area QR kembali ke placeholder. Kecerahan normal. FAB kembali "SCAN SAYA".
+    *   **Timer Habis:** Timer di FAB mencapai "00:00". Polling dihentikan. Area QR kembali ke placeholder dengan pesan "Kode Kedaluwarsa". Kecerahan normal. FAB kembali "SCAN SAYA".
+    *   **Pengguna Menutup/Navigasi (Belum diimplementasikan tombol tutup manual untuk area QR in-page):** Jika pengguna navigasi ke layar lain, saat kembali ke `HomeScreen`, idealnya area QR sudah placeholder dan FAB "SCAN SAYA". Timer dan polling harus dihentikan saat `dispose()` atau `deactivate()` dari `HomeScreen` atau saat navigasi.
+
+## Nama Berkas Saran
+
+*   **Layar Utama dengan Navigasi Bawah & FAB:** `main_scaffold_screen.dart` atau `app_shell.dart`
+*   **Konten Tab Home (termasuk area QR):** `home_tab_screen.dart` atau `rvm_home_content.dart`
+*   **Widget untuk Konten Modal/Area QR (jika dibuat terpisah):** `qr_display_widget.dart`
+
+Dengan menerapkan desain ini, Aplikasi User akan memiliki alur yang jelas, modern, dan informatif untuk fitur inti scan QR Code.
