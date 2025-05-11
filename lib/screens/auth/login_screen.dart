@@ -1,8 +1,8 @@
 // lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-// import '../home_screen.dart'; // Nanti untuk navigasi setelah login
-// import 'registration_screen.dart'; // Nanti untuk navigasi ke registrasi
+import '../home_screen.dart'; // Nanti untuk navigasi setelah login
+import 'registration_screen.dart'; // Nanti untuk navigasi ke registrasi
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,26 +43,28 @@ class _LoginScreenState extends State<LoginScreen> {
         // TODO: Navigasi ke HomeScreen
         final token = result['data']['access_token'];
         final userName = result['data']['user']['name'];
-        print('Login Berhasil! Token: $token, User: $userName'); // Untuk debug
+        debugPrint('Login Berhasil! Token: $token, User: $userName');
+        // print('Login Berhasil! Token: $token, User: $userName'); // Untuk debug
 
         // Contoh navigasi sederhana (ganti dengan navigasi yang benar nanti)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Login Berhasil! Halo $userName')),
         );
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (context) => const HomeScreen()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
       } else {
         // Login gagal
         setState(() {
           _errorMessage = result['message'] ?? 'Terjadi kesalahan saat login.';
           // Jika ada errors spesifik per field dari backend:
-          // final errors = result['errors'];
-          // if (errors != null && errors['email'] != null) {
-          //   _errorMessage = errors['email'][0];
-          // } else if (errors != null && errors['password'] != null) {
-          //   _errorMessage = errors['password'][0];
-          // }
+          final errors = result['errors'];
+          if (errors != null && errors['email'] != null) {
+            _errorMessage = errors['email'][0];
+          } else if (errors != null && errors['password'] != null) {
+            _errorMessage = errors['password'][0];
+          }
+          debugPrint(result['message'] ?? 'Terjadi kesalahan saat login.');
         });
       }
     }
@@ -105,9 +107,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
+                      debugPrint('Email tidak boleh kosong');
                       return 'Email tidak boleh kosong';
                     }
                     if (!value.contains('@')) {
+                      debugPrint('Masukkan email yang valid');
                       return 'Masukkan email yang valid';
                     }
                     return null;
@@ -124,9 +128,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true, // Sembunyikan teks password
                   validator: (value) {
                     if (value == null || value.isEmpty) {
+                      debugPrint('Password tidak boleh kosong');
                       return 'Password tidak boleh kosong';
                     }
                     if (value.length < 8) {
+                      debugPrint('Password minimal 8 karakter');
                       return 'Password minimal 8 karakter';
                     }
                     return null;
@@ -156,10 +162,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton(
                   onPressed: () {
                     // TODO: Navigasi ke RegistrationScreen
-                    print('Navigasi ke halaman registrasi...');
-                    // Navigator.of(context).push(
-                    //   MaterialPageRoute(builder: (context) => const RegistrationScreen()),
-                    // );
+                    debugPrint('Navigasi ke halaman registrasi...');
+                    // print('Navigasi ke halaman registrasi...');
+                    // Gunakan push untuk membuka RegistrationScreen di atas LoginScreen
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const RegistrationScreen(),
+                      ),
+                    );
                   },
                   child: const Text('Belum punya akun? Daftar di sini'),
                 ),

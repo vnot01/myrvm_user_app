@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/auth/login_screen.dart'; // Import LoginScreen
+import 'screens/auth/registration_screen.dart'; // Import RegistrationScreen
+import 'screens/home_screen.dart'; // Import HomeScreen
 
 void main() {
   runApp(const MyApp());
@@ -51,11 +53,11 @@ class MyApp extends StatelessWidget {
       // Ganti home menjadi LoginScreen
       home: const LoginScreen(),
       // TODO: Setup routes untuk navigasi yang lebih baik nanti
-      // routes: {
-      //   '/login': (context) => const LoginScreen(),
-      //   '/register': (context) => const RegistrationScreen(),
-      //   '/home': (context) => const HomeScreen(),
-      // },
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegistrationScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
       // initialRoute: '/login', // Jika menggunakan routes
     );
   }
