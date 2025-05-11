@@ -63,8 +63,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               content: Text('Registrasi Berhasil! Selamat datang $userName'),
             ),
           );
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (Route<dynamic> route) => false,
           );
         } else {
           // Registrasi gagal

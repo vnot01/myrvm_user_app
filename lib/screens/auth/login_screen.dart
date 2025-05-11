@@ -1,9 +1,9 @@
 // lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../home_screen.dart'; // Untuk navigasi setelah login
 import 'registration_screen.dart'; // Untuk navigasi ke registrasi
-import 'package:flutter/services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,36 +37,39 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _isLoading = false;
       });
+      if (mounted) {
+        if (result['success']) {
+          // Login berhasil
+          // TODO: Simpan token (misalnya, menggunakan shared_preferences atau flutter_secure_storage)
+          // TODO: Navigasi ke HomeScreen
+          final token = result['data']['access_token'];
+          final userName = result['data']['user']['name'];
+          debugPrint('Login Berhasil! Token: $token, User: $userName');
+          // print('Login Berhasil! Token: $token, User: $userName'); // Untuk debug
 
-      if (result['success']) {
-        // Login berhasil
-        // TODO: Simpan token (misalnya, menggunakan shared_preferences atau flutter_secure_storage)
-        // TODO: Navigasi ke HomeScreen
-        final token = result['data']['access_token'];
-        final userName = result['data']['user']['name'];
-        debugPrint('Login Berhasil! Token: $token, User: $userName');
-        // print('Login Berhasil! Token: $token, User: $userName'); // Untuk debug
-
-        // Contoh navigasi sederhana (ganti dengan navigasi yang benar nanti)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login Berhasil! Halo $userName')),
-        );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      } else {
-        // Login gagal
-        setState(() {
-          _errorMessage = result['message'] ?? 'Terjadi kesalahan saat login.';
-          // Jika ada errors spesifik per field dari backend:
-          final errors = result['errors'];
-          if (errors != null && errors['email'] != null) {
-            _errorMessage = errors['email'][0];
-          } else if (errors != null && errors['password'] != null) {
-            _errorMessage = errors['password'][0];
-          }
-          debugPrint(result['message'] ?? 'Terjadi kesalahan saat login.');
-        });
+          // Contoh navigasi sederhana (ganti dengan navigasi yang benar nanti)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Login Berhasil! Halo $userName')),
+          );
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (Route<dynamic> route) => false,
+          );
+        } else {
+          // Login gagal
+          setState(() {
+            _errorMessage =
+                result['message'] ?? 'Terjadi kesalahan saat login.';
+            // Jika ada errors spesifik per field dari backend:
+            final errors = result['errors'];
+            if (errors != null && errors['email'] != null) {
+              _errorMessage = errors['email'][0];
+            } else if (errors != null && errors['password'] != null) {
+              _errorMessage = errors['password'][0];
+            }
+            debugPrint(result['message'] ?? 'Terjadi kesalahan saat login.');
+          });
+        }
       }
     }
   }
@@ -87,10 +90,8 @@ class _LoginScreenState extends State<LoginScreen> {
         // `result` adalah data yang mungkin dikembalikan oleh rute yang di-pop (tidak relevan jika canPop: false)
         // Callback ini dipanggil SETELAH upaya pop terjadi (atau tidak terjadi).
         // `didPop` akan false jika canPop adalah false.
-        if (didPop) {
-          // Seharusnya tidak terjadi jika canPop: false
-          return;
-        }
+        if (didPop) return;
+        // Seharusnya tidak terjadi jika canPop: false
         debugPrint(
           "Upaya 'pop' (tombol back) di LoginScreen dicegah oleh PopScope.",
         );
