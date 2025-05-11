@@ -1,0 +1,174 @@
+// lib/screens/auth/login_screen.dart
+import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+// import '../home_screen.dart'; // Nanti untuk navigasi setelah login
+// import 'registration_screen.dart'; // Nanti untuk navigasi ke registrasi
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>(); // Kunci untuk validasi form
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService(); // Instance service auth
+
+  bool _isLoading = false; // Untuk menampilkan indikator loading
+  String? _errorMessage; // Untuk menampilkan pesan error
+
+  Future<void> _loginUser() async {
+    if (_formKey.currentState!.validate()) {
+      // Validasi form
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final result = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['success']) {
+        // Login berhasil
+        // TODO: Simpan token (misalnya, menggunakan shared_preferences atau flutter_secure_storage)
+        // TODO: Navigasi ke HomeScreen
+        final token = result['data']['access_token'];
+        final userName = result['data']['user']['name'];
+        print('Login Berhasil! Token: $token, User: $userName'); // Untuk debug
+
+        // Contoh navigasi sederhana (ganti dengan navigasi yang benar nanti)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login Berhasil! Halo $userName')),
+        );
+        // Navigator.of(context).pushReplacement(
+        //   MaterialPageRoute(builder: (context) => const HomeScreen()),
+        // );
+      } else {
+        // Login gagal
+        setState(() {
+          _errorMessage = result['message'] ?? 'Terjadi kesalahan saat login.';
+          // Jika ada errors spesifik per field dari backend:
+          // final errors = result['errors'];
+          // if (errors != null && errors['email'] != null) {
+          //   _errorMessage = errors['email'][0];
+          // } else if (errors != null && errors['password'] != null) {
+          //   _errorMessage = errors['password'][0];
+          // }
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login RVM User App')),
+      body: Center(
+        child: SingleChildScrollView(
+          // Agar bisa di-scroll jika konten melebihi layar
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  'Selamat Datang!',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32.0),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Email tidak boleh kosong';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Masukkan email yang valid';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16.0),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock),
+                  ),
+                  obscureText: true, // Sembunyikan teks password
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password tidak boleh kosong';
+                    }
+                    if (value.length < 8) {
+                      return 'Password minimal 8 karakter';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        textStyle: const TextStyle(fontSize: 18),
+                      ),
+                      onPressed: _loginUser,
+                      child: const Text('Login'),
+                    ),
+                const SizedBox(height: 16.0),
+                TextButton(
+                  onPressed: () {
+                    // TODO: Navigasi ke RegistrationScreen
+                    print('Navigasi ke halaman registrasi...');
+                    // Navigator.of(context).push(
+                    //   MaterialPageRoute(builder: (context) => const RegistrationScreen()),
+                    // );
+                  },
+                  child: const Text('Belum punya akun? Daftar di sini'),
+                ),
+                // TODO: Tambahkan tombol "Login dengan Google" nanti
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

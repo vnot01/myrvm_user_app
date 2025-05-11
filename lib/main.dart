@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/auth/login_screen.dart'; // Import LoginScreen
 
 void main() {
   runApp(const MyApp());
@@ -29,8 +30,33 @@ class MyApp extends StatelessWidget {
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        // Tambahkan tema untuk input field agar lebih menarik (opsional)
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+          filled: true,
+          fillColor: Colors.grey[100], // Warna latar field
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green, // Warna tombol utama
+            foregroundColor: Colors.white, // Warna teks tombol utama
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      // Ganti home menjadi LoginScreen
+      home: const LoginScreen(),
+      // TODO: Setup routes untuk navigasi yang lebih baik nanti
+      // routes: {
+      //   '/login': (context) => const LoginScreen(),
+      //   '/register': (context) => const RegistrationScreen(),
+      //   '/home': (context) => const HomeScreen(),
+      // },
+      // initialRoute: '/login', // Jika menggunakan routes
     );
   }
 }
