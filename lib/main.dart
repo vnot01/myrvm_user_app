@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'screens/auth/login_screen.dart'; // Import LoginScreen
 import 'screens/auth/registration_screen.dart'; // Import RegistrationScreen
 import 'screens/home_screen.dart'; // Import HomeScreen
+import 'services/token_service.dart'; // Import TokenService
+import 'services/auth_service.dart'; // Import AuthService
+// import 'package:flutter/foundation.dart'; // Untuk debugPrint
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized(); // Penting untuk async di main
   runApp(const MyApp());
 }
 
@@ -49,102 +53,89 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+
       // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      // Ganti home menjadi LoginScreen
-      home: const LoginScreen(),
+      home: const AuthCheckScreen(), // Mulai dengan AuthCheckScreen
       // TODO: Setup routes untuk navigasi yang lebih baik nanti
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
         '/home': (context) => const HomeScreen(),
       },
-      // initialRoute: '/login', // Jika menggunakan routes
+      initialRoute: '/login', // Jika menggunakan routes
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class AuthCheckScreen extends StatefulWidget {
+  const AuthCheckScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<AuthCheckScreen> createState() => _AuthCheckScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _AuthCheckScreenState extends State<AuthCheckScreen> {
+  final TokenService _tokenService = TokenService();
+  // Untuk validasi token via profil
+  final AuthService _authService = AuthService();
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Beri sedikit jeda untuk splash screen atau inisialisasi lain jika perlu
+    await Future.delayed(
+      const Duration(seconds: 1),
+    ); // Simulasi loading splash screen
+
+    // getToken() bisa mengembalikan null
+    String? token = await _tokenService.getToken();
+    if (token != null) {
+      debugPrint('AuthCheckScreen: Token found: $token');
+      // Validasi token dengan mencoba fetch profil
+      final userProfile = await _authService.getUserProfile();
+      if (mounted) {
+        // Cek jika widget masih di tree
+        if (userProfile != null) {
+          debugPrint('AuthCheckScreen: Token valid, navigating to HomeScreen.');
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          // Profil gagal diambil, token lokal mungkin tidak valid/kadaluarsa di server
+          debugPrint(
+            'AuthCheckScreen: Token invalid or expired, navigating to LoginScreen.',
+          );
+          // Hapus token yang tidak valid
+          await _tokenService.deleteTokenAndUserDetails();
+          if (mounted) {
+            Navigator.of(context).pushReplacementNamed('/login');
+          }
+        }
+      }
+    } else {
+      debugPrint('AuthCheckScreen: No token found, navigating to LoginScreen.');
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
+    // Tampilan Splash Screen sederhana
+    return const Scaffold(
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20),
+            Text("Memeriksa status login..."),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

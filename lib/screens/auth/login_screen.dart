@@ -1,8 +1,9 @@
 // lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import '../home_screen.dart'; // Nanti untuk navigasi setelah login
-import 'registration_screen.dart'; // Nanti untuk navigasi ke registrasi
+import '../home_screen.dart'; // Untuk navigasi setelah login
+import 'registration_screen.dart'; // Untuk navigasi ke registrasi
+import 'package:flutter/services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -79,102 +80,150 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login RVM User App')),
-      body: Center(
-        child: SingleChildScrollView(
-          // Agar bisa di-scroll jika konten melebihi layar
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  'Selamat Datang!',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.center,
+    // WillPopScope untuk mengontrol tombol back fisik di Android
+    return PopScope(
+      canPop: false, // `false` berarti navigasi "back" dicegah
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        // `result` adalah data yang mungkin dikembalikan oleh rute yang di-pop (tidak relevan jika canPop: false)
+        // Callback ini dipanggil SETELAH upaya pop terjadi (atau tidak terjadi).
+        // `didPop` akan false jika canPop adalah false.
+        if (didPop) {
+          // Seharusnya tidak terjadi jika canPop: false
+          return;
+        }
+        debugPrint(
+          "Upaya 'pop' (tombol back) di LoginScreen dicegah oleh PopScope.",
+        );
+        // Tampilkan dialog konfirmasi
+        final bool? shouldPop = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Keluar Aplikasi?'),
+                content: const Text(
+                  'Apakah Anda yakin ingin keluar dari aplikasi?',
                 ),
-                const SizedBox(height: 32.0),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed:
+                        () => Navigator.of(context).pop(false), // Jangan keluar
+                    child: const Text('Tidak'),
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      debugPrint('Email tidak boleh kosong');
-                      return 'Email tidak boleh kosong';
-                    }
-                    if (!value.contains('@')) {
-                      debugPrint('Masukkan email yang valid');
-                      return 'Masukkan email yang valid';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16.0),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                  TextButton(
+                    onPressed:
+                        () => Navigator.of(context).pop(true), // Ya, keluar
+                    child: const Text('Ya'),
                   ),
-                  obscureText: true, // Sembunyikan teks password
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      debugPrint('Password tidak boleh kosong');
-                      return 'Password tidak boleh kosong';
-                    }
-                    if (value.length < 8) {
-                      debugPrint('Password minimal 8 karakter');
-                      return 'Password minimal 8 karakter';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24.0),
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10.0),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.red, fontSize: 14),
-                      textAlign: TextAlign.center,
+                ],
+              ),
+        );
+
+        // Jika pengguna memilih "Ya" (shouldPop == true), maka keluar dari aplikasi
+        if (shouldPop ?? false) {
+          // ?? false untuk menangani jika dialog ditutup tanpa pilihan
+          debugPrint(
+            "User memilih keluar dari aplikasi via tombol back di LoginScreen.",
+          );
+          SystemNavigator.pop(); // Keluar dari aplikasi
+        } else {
+          debugPrint("User memilih untuk tidak keluar dari aplikasi.");
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Login RVM User App'),
+          automaticallyImplyLeading:
+              false, // <-- TAMBAHKAN INI untuk menghilangkan tombol back di AppBar
+        ),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'Selamat Datang!',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32.0),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.email),
                     ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        debugPrint('Email tidak boleh kosong');
+                        return 'Email tidak boleh kosong';
+                      }
+                      if (!value.contains('@') || !value.contains('.')) {
+                        debugPrint('Masukkan email yang valid');
+                        return 'Masukkan email yang valid';
+                      }
+                      return null;
+                    },
                   ),
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        textStyle: const TextStyle(fontSize: 18),
-                      ),
-                      onPressed: _loginUser,
-                      child: const Text('Login'),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock),
                     ),
-                const SizedBox(height: 16.0),
-                TextButton(
-                  onPressed: () {
-                    // TODO: Navigasi ke RegistrationScreen
-                    debugPrint('Navigasi ke halaman registrasi...');
-                    // print('Navigasi ke halaman registrasi...');
-                    // Gunakan push untuk membuka RegistrationScreen di atas LoginScreen
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const RegistrationScreen(),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        debugPrint('Password tidak boleh kosong');
+                        return 'Password tidak boleh kosong';
+                      }
+                      if (value.length < 8) {
+                        debugPrint('Password minimal 8 karakter');
+                        return 'Password minimal 8 karakter';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24.0),
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                        textAlign: TextAlign.center,
                       ),
-                    );
-                  },
-                  child: const Text('Belum punya akun? Daftar di sini'),
-                ),
-                // TODO: Tambahkan tombol "Login dengan Google" nanti
-              ],
+                    ),
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                        onPressed: _loginUser,
+                        child: const Text('Login'),
+                      ),
+                  const SizedBox(height: 16.0),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const RegistrationScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text('Belum punya akun? Daftar di sini'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
