@@ -1,6 +1,0 @@
-Minta dibuatkan Dokumentasi:
-PERFECT!!
-Catat hasil diskusi kita berisi Analisisnya, Detail dari Masing-masing rekomendasi, Alasan, Alur, dan Versi Final (jika ada revisi sampaikan revisi keberapa dan alasannya) dari Desain UI dan Fungsionalitasnya berjalan. Serta buat catatan juga tentang TroubleShoting beserta cara penyelesaian masalahnya. format markdown.
-
-Minta Konsep Aplikasi:
-Tolong ingatkan lagi Proposal Pengembangan Sistem Multi-Aplikasi Reverse Vending Machine (RVM) Terintegrasi (Berikan juga Informasi proposal ini revisi keberapa) dan Konsep (yang lengkap) yang akan kita terapkan berserta bahan / alat yang dibutuhkan. Yang lengkap kemudian pada Peta Progres Pengembangan berikan informasi Progress (apakah sudah selesai, atau belum, atau sedang di kerjakan (berapa persen) ).  Berikan Alur dan Cara Kerja nya. Berikan Informasi cara Pengujian.

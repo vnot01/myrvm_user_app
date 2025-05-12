@@ -1,7 +1,6 @@
 // lib/screens/auth/registration_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'registration_screen.dart'; // Untuk navigasi ke registrasi
+// Untuk navigasi ke registrasi
 import '../main_shell_screen.dart'; // Untuk navigasi setelah login
 import '../../services/auth_service.dart'; // Instance service auth
 // import '../home_screen.dart'; // Untuk navigasi setelah login

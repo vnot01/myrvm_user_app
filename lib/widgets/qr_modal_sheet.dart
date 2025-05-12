@@ -188,7 +188,7 @@ class _QrModalSheetWidgetState extends State<QrModalSheetWidget> {
 
     // Di _QrModalSheetWidgetState, dalam metode _handleGenerateNewToken()
     // (atau metode yang dipanggil oleh tombol "Generate Ulang Kode")
-    Future<void> _triggerRegenerateFromParent() async {
+    Future<void> triggerRegenerateFromParent() async {
       if (!mounted) return;
       // Beri tahu parent (MainShellScreen) bahwa kita ingin regenerate
       Navigator.of(context).pop('regenerate_token');
@@ -202,7 +202,7 @@ class _QrModalSheetWidgetState extends State<QrModalSheetWidget> {
       onPressed:
           _isGeneratingNewToken
               ? null
-              : _triggerRegenerateFromParent, // Panggil ini
+              : triggerRegenerateFromParent, // Panggil ini
     );
   }
 
