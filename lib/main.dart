@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'services/token_service.dart'; // Import TokenService
+import 'services/auth_service.dart'; // Import AuthService
 import 'screens/auth/login_screen.dart'; // Import LoginScreen
 import 'screens/auth/registration_screen.dart'; // Import RegistrationScreen
 import 'screens/home_screen.dart'; // Import HomeScreen
-import 'services/token_service.dart'; // Import TokenService
-import 'services/auth_service.dart'; // Import AuthService
+import 'screens/main_shell_screen.dart'; // <-- IMPORT MainShellScreen
+
 // import 'package:flutter/foundation.dart'; // Untuk debugPrint
 
 void main() {
@@ -60,7 +62,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/main': (context) => const MainShellScreen(),
+        // '/home': (context) => const HomeScreen(),
       },
       initialRoute: '/login', // Jika menggunakan routes
     );
@@ -86,50 +89,75 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    // Beri sedikit jeda untuk splash screen atau inisialisasi lain jika perlu
-    await Future.delayed(
-      const Duration(milliseconds: 500),
-    ); // Simulasi loading splash screen
-    // getToken() bisa mengembalikan null
+    await Future.delayed(const Duration(milliseconds: 500));
     String? token = await _tokenService.getToken();
     if (token != null) {
-      debugPrint('AuthCheckScreen: Token found: $token');
-      // Validasi token dengan mencoba fetch profil
-      final userProfile = await _authService.getUserProfile();
+      final userProfileData = await _authService.getUserProfile();
       if (mounted) {
-        // Cek jika widget masih di tree
-        if (userProfile != null) {
-          debugPrint('AuthCheckScreen: Token valid, navigating to HomeScreen.');
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-            (Route<dynamic> route) =>
-                false, // Ini akan menghapus semua rute sebelumnya
-          );
-        } else {
-          // Profil gagal diambil, token lokal mungkin tidak valid/kadaluarsa di server
+        if (userProfileData != null) {
           debugPrint(
-            'AuthCheckScreen: Token invalid or expired, navigating to LoginScreen.',
+            'AuthCheckScreen: Token valid, navigasi ke MainShellScreen.',
           );
-          // Hapus token yang tidak valid
-          await _tokenService.deleteTokenAndUserDetails();
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (Route<dynamic> route) => false,
-            );
-          }
+          // --- PERUBAHAN NAVIGASI DI SINI ---
+          Navigator.of(context).pushReplacementNamed('/main');
+        } else {
+          // ... (navigasi ke login sama) ...
+          Navigator.of(context).pushReplacementNamed('/login');
         }
       }
     } else {
-      debugPrint('AuthCheckScreen: No token found, navigating to LoginScreen.');
+      // ... (navigasi ke login sama) ...
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (Route<dynamic> route) => false,
-        );
+        Navigator.of(context).pushReplacementNamed('/login');
       }
     }
   }
+
+  // Future<void> _checkLoginStatus() async {
+  //   // Beri sedikit jeda untuk splash screen atau inisialisasi lain jika perlu
+  //   await Future.delayed(
+  //     const Duration(milliseconds: 500),
+  //   ); // Simulasi loading splash screen
+  //   // getToken() bisa mengembalikan null
+  //   String? token = await _tokenService.getToken();
+  //   if (token != null) {
+  //     debugPrint('AuthCheckScreen: Token found: $token');
+  //     // Validasi token dengan mencoba fetch profil
+  //     final userProfile = await _authService.getUserProfile();
+  //     if (mounted) {
+  //       // Cek jika widget masih di tree
+  //       if (userProfile != null) {
+  //         debugPrint('AuthCheckScreen: Token valid, navigating to HomeScreen.');
+  //         Navigator.of(context).pushAndRemoveUntil(
+  //           MaterialPageRoute(builder: (context) => const HomeScreen()),
+  //           (Route<dynamic> route) =>
+  //               false, // Ini akan menghapus semua rute sebelumnya
+  //         );
+  //       } else {
+  //         // Profil gagal diambil, token lokal mungkin tidak valid/kadaluarsa di server
+  //         debugPrint(
+  //           'AuthCheckScreen: Token invalid or expired, navigating to LoginScreen.',
+  //         );
+  //         // Hapus token yang tidak valid
+  //         await _tokenService.deleteTokenAndUserDetails();
+  //         if (mounted) {
+  //           Navigator.of(context).pushAndRemoveUntil(
+  //             MaterialPageRoute(builder: (context) => const LoginScreen()),
+  //             (Route<dynamic> route) => false,
+  //           );
+  //         }
+  //       }
+  //     }
+  //   } else {
+  //     debugPrint('AuthCheckScreen: No token found, navigating to LoginScreen.');
+  //     if (mounted) {
+  //       Navigator.of(context).pushAndRemoveUntil(
+  //         MaterialPageRoute(builder: (context) => const LoginScreen()),
+  //         (Route<dynamic> route) => false,
+  //       );
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
