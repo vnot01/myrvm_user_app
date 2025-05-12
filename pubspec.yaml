@@ -36,6 +36,7 @@ dependencies:
   http: ^1.2.1
   shared_preferences: ^2.2.3 # Atau versi terbaru
   qr_flutter: ^4.1.0 # Atau versi terbaru
+  screen_brightness: ^1.0.0 # Tingkat kecerahan layar
   # ... (dependensi lain)
 
 dev_dependencies:
