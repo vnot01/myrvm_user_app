@@ -1,9 +1,8 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
-// import 'package:flutter/services.dart'; // Untuk SystemNavigator jika diperlukan
 import '../services/auth_service.dart';
-import '../services/token_service.dart'; // Untuk mendapatkan detail user jika disimpan
-import 'auth/login_screen.dart'; // Untuk navigasi setelah logout
+import 'auth/login_screen.dart';
+import 'package:flutter/foundation.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,56 +13,55 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
-  final TokenService _tokenService =
-      TokenService(); // Untuk mengambil nama/id jika perlu
+  // Kita tidak lagi menyimpan _userData dan _isLoading sebagai state di sini,
+  // FutureBuilder akan menanganinya.
 
-  Map<String, dynamic>? _userData; // Untuk menyimpan data profil dari API
-  bool _isLoading = true;
-  String? _errorMessage;
+  // Future untuk data profil
+  late Future<Map<String, dynamic>?> _userProfileFuture;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserProfile();
+    // Panggil _fetchUserProfile untuk mendapatkan Future-nya
+    _userProfileFuture = _fetchUserProfile();
   }
 
-  Future<void> _fetchUserProfile() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<Map<String, dynamic>?> _fetchUserProfile() async {
+    debugPrint("ProfileScreen: Memulai _fetchUserProfile...");
     try {
       final userProfile = await _authService.getUserProfile();
-      if (mounted) {
-        if (userProfile != null) {
-          setState(() {
-            _userData = userProfile;
-            _isLoading = false;
-          });
-        } else {
-          // Kemungkinan token tidak valid lagi, paksa logout
-          setState(() {
-            _isLoading = false;
-            _errorMessage =
-                "Gagal mengambil data profil. Sesi mungkin berakhir.";
-          });
-          await _forceLogout();
+      if (userProfile != null) {
+        debugPrint("ProfileScreen: Data profil berhasil diambil: $userProfile");
+        return userProfile;
+      } else {
+        debugPrint(
+          "ProfileScreen: Gagal mengambil data profil atau token tidak valid.",
+        );
+        // Jika token tidak valid, _authService.getUserProfile() sudah menghapus token lokal
+        // Kita perlu navigasi ke login jika itu terjadi
+        if (mounted) {
+          _forceLogout("Sesi Anda telah berakhir. Silakan login kembali.");
         }
+        return null;
       }
     } catch (e) {
+      debugPrint("ProfileScreen: Exception saat _fetchUserProfile: $e");
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = "Terjadi kesalahan: ${e.toString()}";
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error mengambil profil: ${e.toString()}")),
+        );
       }
-      debugPrint("Error fetching profile: $e");
+      return null; // Kembalikan null jika ada error
     }
   }
 
-  Future<void> _forceLogout() async {
-    await _authService.logout();
+  Future<void> _forceLogout(String message) async {
+    // Tidak perlu panggil _authService.logout() lagi,
+    // jika getUserProfile sudah handle await _authService.logout();
     if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (Route<dynamic> route) => false,
@@ -72,6 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
+    // ... (Logika dialog konfirmasi logout sama seperti sebelumnya) ...
     final bool? confirmLogout = await showDialog<bool>(
       context: context,
       // User harus memilih salah
@@ -103,19 +102,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     ); // Akhir dari showDialog
 
-    // Hanya lanjutkan jika pengguna mengkonfirmasi (menekan "Ya, Logout")
     if (confirmLogout == true) {
-      // Pengecekan eksplisit ke true lebih aman
       await _authService.logout();
       if (mounted) {
-        // Selalu cek 'mounted' sebelum memanggil Navigator dalam async gap
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (Route<dynamic> route) => false,
         );
       }
-    } else {
-      debugPrint("Logout dibatalkan oleh pengguna.");
     }
   }
 
@@ -139,67 +133,91 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("ProfileScreen: build() dipanggil.");
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil Pengguna'),
-        // Tombol back akan muncul otomatis karena layar ini di-push
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage != null
-              ? Center(
+      appBar: AppBar(title: const Text('Profil Pengguna')),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Saat pull-to-refresh, panggil lagi _fetchUserProfile dan
+          // update FutureBuilder
+          setState(() {
+            _userProfileFuture = _fetchUserProfile();
+          });
+        },
+        child: FutureBuilder<Map<String, dynamic>?>(
+          future: _userProfileFuture, // Future yang akan diobservasi
+          builder: (context, snapshot) {
+            // Snapshot berisi status dari
+            // Future: connectionState, data, error
+            debugPrint(
+              "ProfileScreen FutureBuilder: ConnectionState: ${snapshot.connectionState}",
+            );
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              debugPrint("ProfileScreen FutureBuilder: Menunggu data...");
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              debugPrint(
+                "ProfileScreen FutureBuilder: Error - ${snapshot.error}",
+              );
+              return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    _errorMessage!,
+                    "Error memuat profil: ${snapshot.error}",
                     style: const TextStyle(color: Colors.red, fontSize: 16),
                     textAlign: TextAlign.center,
                   ),
                 ),
-              )
-              : _userData != null
-              ? RefreshIndicator(
-                // Untuk fitur pull-to-refresh
-                onRefresh: _fetchUserProfile,
-                child: ListView(
-                  // Ganti dengan ListView agar bisa scroll jika konten banyak
+              );
+            } else if (snapshot.hasData && snapshot.data != null) {
+              // snapshot.data adalah Map {'status': 'success', 'user': {...}}
+              // Kita perlu mengambil objek 'user' dari dalamnya.
+              final Map<String, dynamic>? userObject =
+                  snapshot.data!['user'] as Map<String, dynamic>?;
+
+              // Data berhasil diambil
+              if (userObject != null) {
+                // Pastikan objek user ada
+                debugPrint(
+                  "ProfileScreen FutureBuilder: Data userObject diterima - $userObject",
+                );
+                return ListView(
                   padding: const EdgeInsets.all(24.0),
                   children: <Widget>[
                     CircleAvatar(
                       radius: 50,
                       backgroundImage:
-                          _userData!['avatar'] != null
-                              ? NetworkImage(_userData!['avatar'])
-                              : null, // Placeholder jika tidak ada avatar
+                          userObject['avatar'] != null
+                              ? NetworkImage(userObject['avatar'])
+                              : null,
                       child:
-                          _userData!['avatar'] == null
+                          userObject['avatar'] == null
                               ? const Icon(Icons.person, size: 50)
                               : null,
                     ),
                     const SizedBox(height: 20),
-                    _buildProfileDetail('Nama', _userData!['name']),
-                    _buildProfileDetail('Email', _userData!['email']),
+                    _buildProfileDetail('Nama', userObject['name']),
+                    _buildProfileDetail('Email', userObject['email']),
                     _buildProfileDetail(
                       'Poin',
-                      _userData!['points']?.toString() ?? '0',
+                      userObject['points']?.toString() ?? '0',
                     ),
-                    _buildProfileDetail('Role', _userData!['role']),
+                    _buildProfileDetail('Role', userObject['role']),
                     _buildProfileDetail(
                       'No. Telepon',
-                      _userData!['phone_number'],
+                      userObject['phone_number'],
                     ),
                     _buildProfileDetail(
                       'Kewarganegaraan',
-                      _userData!['citizenship'],
+                      userObject['citizenship'],
                     ),
                     _buildProfileDetail(
                       'Tipe Identitas',
-                      _userData!['identity_type'],
+                      userObject['identity_type'],
                     ),
                     _buildProfileDetail(
                       'No. Identitas',
-                      _userData!['identity_number'],
+                      userObject['identity_number'],
                     ),
                     const SizedBox(height: 30),
                     ElevatedButton.icon(
@@ -211,9 +229,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ],
+                );
+              } else {
+                // Jika snapshot.data ada tapi tidak ada key 'user' atau 'user' bukan Map
+                debugPrint(
+                  "ProfileScreen FutureBuilder: Struktur data user tidak sesuai di snapshot.",
+                );
+                return const Center(
+                  child: Text('Format data profil tidak valid.'),
+                );
+              }
+            } else {
+              // Data null atau tidak ada data (setelah Future selesai tanpa error tapi data null)
+              debugPrint(
+                "ProfileScreen FutureBuilder: Tidak ada data profil atau data null.",
+              );
+              return const Center(
+                child: Text(
+                  'Tidak dapat memuat data profil. Silakan coba lagi.',
+                  textAlign: TextAlign.center,
                 ),
-              )
-              : const Center(child: Text('Tidak ada data profil pengguna.')),
+              );
+            }
+          },
+        ),
+      ),
     );
   }
 }

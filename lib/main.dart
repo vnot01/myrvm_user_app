@@ -1,85 +1,59 @@
 import 'package:flutter/material.dart';
-import 'services/token_service.dart'; // Import TokenService
-import 'services/auth_service.dart'; // Import AuthService
-import 'screens/auth/login_screen.dart'; // Import LoginScreen
-import 'screens/auth/registration_screen.dart'; // Import RegistrationScreen
-import 'screens/home_screen.dart'; // Import HomeScreen
-import 'screens/main_shell_screen.dart'; // <-- IMPORT MainShellScreen
-
-// import 'package:flutter/foundation.dart'; // Untuk debugPrint
+import 'services/token_service.dart';
+import 'services/auth_service.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/main_shell_screen.dart';
+// import 'package:flutter/foundation.dart'; // Kemungkinan tidak perlu jika material.dart sudah cukup
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); // Penting untuk async di main
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MyRVM App',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        // Anda bisa ganti seedColor
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
-        // Tambahkan tema untuk input field agar lebih menarik (opsional)
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
           filled: true,
-          fillColor: Colors.grey[100], // Warna latar field
+          fillColor: Colors.grey[100], // Sesuaikan jika perlu
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green, // Warna tombol utama
-            foregroundColor: Colors.white, // Warna teks tombol utama
+            // backgroundColor: Colors.green, // Diambil dari colorScheme.primary jika tidak diset
+            // foregroundColor: Colors.white, // Diambil dari colorScheme.onPrimary
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
           ),
         ),
       ),
-
-      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: const AuthCheckScreen(), // Mulai dengan AuthCheckScreen
-      // TODO: Setup routes untuk navigasi yang lebih baik nanti
+      home: const AuthCheckScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegistrationScreen(),
         '/main': (context) => const MainShellScreen(),
-        // '/home': (context) => const HomeScreen(),
+        // '/register': (context) => const RegistrationScreen(), // Bisa ditambahkan jika perlu
       },
-      initialRoute: '/login', // Jika menggunakan routes
     );
   }
 }
 
 class AuthCheckScreen extends StatefulWidget {
   const AuthCheckScreen({super.key});
-
   @override
   State<AuthCheckScreen> createState() => _AuthCheckScreenState();
 }
 
 class _AuthCheckScreenState extends State<AuthCheckScreen> {
   final TokenService _tokenService = TokenService();
-  // Untuk validasi token via profil
   final AuthService _authService = AuthService();
 
   @override
@@ -91,73 +65,47 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
   Future<void> _checkLoginStatus() async {
     await Future.delayed(const Duration(milliseconds: 500));
     String? token = await _tokenService.getToken();
+
     if (token != null) {
+      debugPrint(
+        'AuthCheckScreen: Token ditemukan lokal.',
+      ); // Tidak perlu print tokennya di sini
       final userProfileData = await _authService.getUserProfile();
+
       if (mounted) {
         if (userProfileData != null) {
           debugPrint(
-            'AuthCheckScreen: Token valid, navigasi ke MainShellScreen.',
+            'AuthCheckScreen: Token valid di server, navigasi ke MainShellScreen.',
           );
-          // --- PERUBAHAN NAVIGASI DI SINI ---
-          Navigator.of(context).pushReplacementNamed('/main');
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainShellScreen()),
+            (Route<dynamic> route) => false,
+          );
         } else {
-          // ... (navigasi ke login sama) ...
-          Navigator.of(context).pushReplacementNamed('/login');
+          debugPrint(
+            'AuthCheckScreen: Token tidak valid/kadaluarsa di server, hapus token lokal.',
+          );
+          await _tokenService.deleteTokenAndUserDetails();
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (Route<dynamic> route) => false,
+            );
+          }
         }
       }
     } else {
-      // ... (navigasi ke login sama) ...
+      debugPrint(
+        'AuthCheckScreen: Tidak ada token lokal, navigasi ke LoginScreen.',
+      );
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (Route<dynamic> route) => false,
+        );
       }
     }
   }
-
-  // Future<void> _checkLoginStatus() async {
-  //   // Beri sedikit jeda untuk splash screen atau inisialisasi lain jika perlu
-  //   await Future.delayed(
-  //     const Duration(milliseconds: 500),
-  //   ); // Simulasi loading splash screen
-  //   // getToken() bisa mengembalikan null
-  //   String? token = await _tokenService.getToken();
-  //   if (token != null) {
-  //     debugPrint('AuthCheckScreen: Token found: $token');
-  //     // Validasi token dengan mencoba fetch profil
-  //     final userProfile = await _authService.getUserProfile();
-  //     if (mounted) {
-  //       // Cek jika widget masih di tree
-  //       if (userProfile != null) {
-  //         debugPrint('AuthCheckScreen: Token valid, navigating to HomeScreen.');
-  //         Navigator.of(context).pushAndRemoveUntil(
-  //           MaterialPageRoute(builder: (context) => const HomeScreen()),
-  //           (Route<dynamic> route) =>
-  //               false, // Ini akan menghapus semua rute sebelumnya
-  //         );
-  //       } else {
-  //         // Profil gagal diambil, token lokal mungkin tidak valid/kadaluarsa di server
-  //         debugPrint(
-  //           'AuthCheckScreen: Token invalid or expired, navigating to LoginScreen.',
-  //         );
-  //         // Hapus token yang tidak valid
-  //         await _tokenService.deleteTokenAndUserDetails();
-  //         if (mounted) {
-  //           Navigator.of(context).pushAndRemoveUntil(
-  //             MaterialPageRoute(builder: (context) => const LoginScreen()),
-  //             (Route<dynamic> route) => false,
-  //           );
-  //         }
-  //       }
-  //     }
-  //   } else {
-  //     debugPrint('AuthCheckScreen: No token found, navigating to LoginScreen.');
-  //     if (mounted) {
-  //       Navigator.of(context).pushAndRemoveUntil(
-  //         MaterialPageRoute(builder: (context) => const LoginScreen()),
-  //         (Route<dynamic> route) => false,
-  //       );
-  //     }
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {

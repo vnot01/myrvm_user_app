@@ -1,9 +1,10 @@
 // lib/screens/auth/registration_screen.dart
 import 'package:flutter/material.dart';
-import '../../services/auth_service.dart';
-import '../home_screen.dart'; // Untuk navigasi setelah registrasi sukses
-// LoginScreen tidak perlu diimport jika kita hanya pop, tapi bisa juga untuk pushReplacement
-// import 'login_screen.dart';
+import 'package:flutter/services.dart';
+import 'registration_screen.dart'; // Untuk navigasi ke registrasi
+import '../main_shell_screen.dart'; // Untuk navigasi setelah login
+import '../../services/auth_service.dart'; // Instance service auth
+// import '../home_screen.dart'; // Untuk navigasi setelah login
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -63,8 +64,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               content: Text('Registrasi Berhasil! Selamat datang $userName'),
             ),
           );
+          // Navigator.of(context).pushAndRemoveUntil(
+          //   MaterialPageRoute(builder: (context) => const HomeScreen()),
+          //   (Route<dynamic> route) => false,
+          // );
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            // Pastikan ini
+            MaterialPageRoute(builder: (context) => const MainShellScreen()),
             (Route<dynamic> route) => false,
           );
         } else {
