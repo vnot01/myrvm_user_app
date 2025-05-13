@@ -4,10 +4,14 @@ import '../services/auth_service.dart';
 import 'auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  // Tambahkan key di konstruktor
+  const ProfileScreen({Key? key}) : super(key: key);
+
+  // @override
+  // State<ProfileScreen> createState() => _ProfileScreenState();
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  _ProfileScreenState createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -51,6 +55,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
       return null; // Kembalikan null jika ada error
+    }
+  }
+
+  // Metode publik untuk memicu refresh dari luar (misalnya dari MainShellScreen)
+  void refreshProfile() {
+    debugPrint("ProfileScreen: refreshProfile() dipanggil dari luar.");
+    if (mounted) {
+      setState(() {
+        // Panggil lagi untuk mendapatkan Future baru
+        _userProfileFuture = _fetchUserProfile();
+      });
     }
   }
 

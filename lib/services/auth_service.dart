@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../utils/api_config.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Atau gunakan TokenService Anda
 import 'token_service.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/api_config.dart';
+import '../models/deposit_model.dart'; // Import model Deposit Anda
 
 class AuthService {
   final TokenService _tokenService = TokenService();
@@ -17,7 +19,7 @@ class AuthService {
 
   /// Melakukan login pengguna ke backend.
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/auth/login');
+    final url = Uri.parse(ApiConfig.loginUrl);
     debugPrint('AuthService: Attempting login for $email to $url');
     try {
       final response = await http
@@ -143,7 +145,7 @@ class AuthService {
     required String password,
     required String passwordConfirmation,
   }) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/auth/register');
+    final url = Uri.parse(ApiConfig.registerUrl);
     debugPrint('AuthService: Attempting registration for $email to $url');
     try {
       final response = await http
@@ -267,7 +269,7 @@ class AuthService {
   Future<void> logout() async {
     final token = await _tokenService.getToken();
     if (token != null) {
-      final url = Uri.parse('${ApiConfig.baseUrl}/auth/logout');
+      final url = Uri.parse(ApiConfig.logoutUrl);
       debugPrint('AuthService: Attempting logout from $url');
       try {
         await http
@@ -296,7 +298,7 @@ class AuthService {
       debugPrint('AuthService GetProfile: No local token found.');
       return null;
     }
-    final url = Uri.parse('${ApiConfig.baseUrl}/auth/user');
+    final url = Uri.parse(ApiConfig.profileUrl);
     debugPrint('AuthService: Attempting to get user profile from $url');
     try {
       final response = await http
@@ -355,7 +357,7 @@ class AuthService {
         'message': 'User not authenticated for generating RVM token.',
       };
     }
-    final url = Uri.parse('${ApiConfig.baseUrl}/user/generate-rvm-token');
+    final url = Uri.parse(ApiConfig.generateRvmTokenUrl);
     debugPrint('AuthService: Attempting to generate RVM login token from $url');
     try {
       final response = await http
@@ -418,7 +420,7 @@ class AuthService {
     }
 
     final url = Uri.parse(
-      '${ApiConfig.baseUrl}/user/check-rvm-scan-status?token=$rvmLoginTokenToCheck',
+      '${ApiConfig.checkRvmScanStatusUrl}?token=$rvmLoginTokenToCheck',
     );
     debugPrint(
       'AuthService: Checking RVM scan status for token: $rvmLoginTokenToCheck',
@@ -438,9 +440,9 @@ class AuthService {
       debugPrint(
         'AuthService CheckScanStatus: Response Status Code: ${response.statusCode}',
       );
-      debugPrint(
-        'AuthService CheckScanStatus: Response Body: ${response.body}',
-      );
+      // debugPrint(
+      //   'AuthService CheckScanStatus: Response Body: ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
@@ -465,6 +467,127 @@ class AuthService {
         'success': false,
         'status': 'error',
         'message': 'Connection error or timeout checking scan status.',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> getDepositHistory({int page = 1}) async {
+    // GUNAKAN TokenService untuk mengambil token:
+    final token = await _tokenService.getToken();
+    debugPrint(
+      'AuthService: Mencoba mengambil token via TokenService. Hasil: ${token != null ? "Token Ditemukan" : "Token NULL"}',
+    );
+
+    if (token == null) {
+      debugPrint('AuthService: Token tidak ditemukan untuk getDepositHistory.');
+      return {
+        'success': false,
+        'message': 'User not authenticated.',
+        'data': <Deposit>[],
+      };
+    }
+
+    final Uri uri = Uri.parse('${ApiConfig.historyUrl}?page=$page');
+    debugPrint('AuthService: Memanggil GET $uri');
+
+    try {
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+              ..._ngrokSkipHeader,
+            },
+          )
+          .timeout(const Duration(seconds: 15)); // Tambahkan timeout
+
+      debugPrint(
+        'AuthService: getDepositHistory status code: ${response.statusCode}',
+      );
+      // debugPrint('AuthService: getDepositHistory response body: ${response.body}'); // Hati-hati jika body besar
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        // Asumsi API mengembalikan struktur paginasi Laravel: { data: [...], links: {...}, meta: {...} }
+        // Pastikan responseData adalah Map dan memiliki key 'data' yang juga Map
+        if (responseData is Map<String, dynamic> &&
+            responseData['data'] is Map<String, dynamic>) {
+          // Akses objek paginasi // Ambil nilai 'data' dulu
+          final Map<String, dynamic> paginationData = responseData['data'];
+          // Akses list 'data' di dalam objek paginasi
+          // Beri default list kosong jika key 'data' tidak ada atau null
+          final List<dynamic> depositsJson =
+              paginationData['data'] as List<dynamic>? ?? [];
+          // Parsing list JSON menjadi List<Deposit>
+          final List<Deposit> deposits =
+              depositsJson
+                  .map((json) => Deposit.fromJson(json as Map<String, dynamic>))
+                  .toList();
+
+          debugPrint(
+            'AuthService: Berhasil mendapatkan ${deposits.length} item riwayat.',
+          );
+          // Kembalikan hasil termasuk data paginasi
+          return {
+            'success': true,
+            'message': 'History fetched successfully',
+            'data': deposits, // List<Deposit>
+            // Ambil meta dan links dari objek paginasi
+            'meta': paginationData['meta'],
+            'links': paginationData['links'],
+          };
+        } else {
+          // Jika struktur utama { data: { ... } } tidak ditemukan
+          debugPrint(
+            'AuthService: Format respons paginasi tidak sesuai harapan.',
+          );
+          return {
+            'success': false,
+            'message': 'Invalid pagination response format.',
+            'data': <Deposit>[],
+          };
+        }
+        // --- AKHIR PERBAIKAN ---
+      } else if (response.statusCode == 401) {
+        // ... (kode error 401 tetap sama) ...
+        debugPrint(
+          'AuthService: Gagal getDepositHistory - Unauthenticated (401).',
+        );
+        await _tokenService
+            .deleteTokenAndUserDetails(); // Logout otomatis jika token tidak valid
+        return {
+          'success': false,
+          'message': 'Authentication failed. Please login again.',
+          'data': <Deposit>[],
+        };
+      } else {
+        String errorMessage =
+            'Failed to fetch history. Status code: ${response.statusCode}';
+        try {
+          // Coba parse pesan error dari backend jika ada
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map<String, dynamic> &&
+              errorData.containsKey('message')) {
+            errorMessage = errorData['message'] as String;
+          }
+        } catch (e) {
+          // Biarkan errorMessage default jika parsing gagal
+          debugPrint('AuthService: Exception saat Gagal Parse - Status: $e');
+        }
+        debugPrint(
+          'AuthService: Gagal getDepositHistory - Status: ${response.statusCode}',
+        );
+        // ... (parsing pesan error) ...
+        return {'success': false, 'message': errorMessage, 'data': <Deposit>[]};
+      }
+    } catch (e) {
+      debugPrint('AuthService: Exception saat getDepositHistory: $e');
+      return {
+        'success': false,
+        'message': 'An error occurred: ${e.toString()}',
+        'data': <Deposit>[],
       };
     }
   }

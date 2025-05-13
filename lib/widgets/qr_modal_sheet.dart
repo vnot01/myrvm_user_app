@@ -127,10 +127,11 @@ class _QrModalSheetWidgetState extends State<QrModalSheetWidget> {
                   TextButton(
                     child: const Text('OK', style: TextStyle(fontSize: 16)),
                     onPressed: () {
+                      // Navigator.of(context).pop(true)
                       Navigator.of(dialogCtx).pop(); // Tutup dialog sukses
                       if (mounted && Navigator.canPop(context)) {
                         Navigator.of(context).pop(
-                          true,
+                          'scan_success',
                         ); // Tutup modal QR, kembalikan true (menandakan sukses)
                       }
                     },

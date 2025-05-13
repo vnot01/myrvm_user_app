@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'services/token_service.dart';
 import 'services/auth_service.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_shell_screen.dart';
+// import 'screens/auth/auth_check_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
 // import 'package:flutter/foundation.dart'; // Kemungkinan tidak perlu jika material.dart sudah cukup
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Inisialisasi data lokal untuk Bahasa Indonesia
+  await initializeDateFormatting('id_ID', null);
   runApp(const MyApp());
 }
 

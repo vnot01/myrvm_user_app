@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 // Untuk SystemNavigator
 // Untuk debugPrint
-
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'statistic_screen.dart'; // Pastikan file ini ada
@@ -20,6 +19,12 @@ class MainShellScreen extends StatefulWidget {
 }
 
 class _MainShellScreenState extends State<MainShellScreen> {
+  // final GlobalKey<RefreshIndicatorState> _profileRefreshIndicatorKey =
+  //     GlobalKey<RefreshIndicatorState>();
+  final GlobalKey<State<ProfileScreen>> _profileScreenKey =
+      GlobalKey<State<ProfileScreen>>();
+  // Jika HomeScreen juga perlu refresh
+  // final GlobalKey<_HomeScreenState> _homeScreenKey = GlobalKey<_HomeScreenState>();
   // 0: Home, 1: Statistik, (FAB), 2: Riwayat, 3: Profil
   int _currentIndex = 0;
   final AuthService _authService = AuthService();
@@ -35,13 +40,26 @@ class _MainShellScreenState extends State<MainShellScreen> {
   // Simpan status izin (bisa dari SharedPreferences nanti)
   bool _brightnessPermissionPreviouslyGranted = false;
   bool _brightnessChangedByApp = false;
+  // Jadikan late
+  late List<Widget> _screens;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const StatisticScreen(), // Layar untuk tab Statistik
-    const HistoryScreen(), // Layar untuk tab Riwayat
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Inisialisasi _screens DI DALAM initState
+    _screens = [
+      const HomeScreen(), // Atau HomeScreen(key: _homeScreenKey),
+      const StatisticScreen(),
+      const HistoryScreen(),
+      ProfileScreen(key: _profileScreenKey), // Teruskan key di sini
+    ];
+  }
+  // final List<Widget> _screens = [
+  //   const HomeScreen(),
+  //   const StatisticScreen(), // Layar untuk tab Statistik
+  //   const HistoryScreen(), // Layar untuk tab Riwayat
+  //   const ProfileScreen(),
+  // ];
 
   void _onNavItemTapped(int navBarIndex) {
     // navBarIndex akan 0, 1, (skip FAB), 2, 3
@@ -156,6 +174,96 @@ class _MainShellScreenState extends State<MainShellScreen> {
     }
   }
 
+  // Future<void> _refreshUserData() async {
+  //   debugPrint("MainShell: Memulai refresh data pengguna...");
+  Future<void> _refreshUserData() async {
+    debugPrint("MainShell: Memulai refresh data pengguna...");
+    // Coba panggil refreshProfile jika state ada dan tipenya sesuai
+
+    final profileState = _profileScreenKey.currentState;
+    // final profileScreenState = _profileScreenKey.currentState;
+    if (profileState != null) {
+      // Kita tahu bahwa `profileState` adalah instance dari `_ProfileScreenState`
+      // meskipun tipenya `State<ProfileScreen>`.
+      // Dart memungkinkan pemanggilan metode jika ada di runtime.
+      try {
+        // Ini adalah cara untuk memanggil metode pada objek yang tipenya
+        // tidak sepenuhnya diketahui saat kompilasi, tapi kita tahu metodenya ada.
+        // 'refreshProfile' adalah nama metode di _ProfileScreenState.
+        (profileState as dynamic).refreshProfile();
+        debugPrint(
+          "MainShell: Metode refreshProfile() di ProfileScreen dipanggil.",
+        );
+      } catch (e) {
+        debugPrint(
+          "MainShell: Gagal memanggil refreshProfile: $e. Mungkin metode tidak ditemukan atau state tidak cocok.",
+        );
+        // Fallback: Panggil setState di MainShell untuk memicu rebuild jika ProfileScreen aktif
+        if (mounted) setState(() {});
+      }
+    } else {
+      debugPrint(
+        "MainShell: Tidak bisa mendapatkan currentState dari ProfileScreen untuk refresh.",
+      );
+      // Fallback: Panggil setState di MainShell
+      if (mounted) setState(() {});
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data pengguna sedang diperbarui...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  // // Cara memanggil metode refresh di ProfileScreen:
+  // // Kita perlu ProfileScreen mengekspos metode ini.
+  // // Untuk sekarang, kita asumsikan ProfileScreen akan otomatis refresh
+  // // jika datanya berubah di state global, atau kita akan implementasi ini nanti.
+  // // Atau, jika ProfileScreen menggunakan FutureBuilder yang di-trigger oleh perubahan key
+  // // atau parameter, kita bisa memicunya.
+
+  // // Untuk sekarang, kita hanya log dan tampilkan SnackBar
+  // // Panggil metode refresh pada ProfileScreen jika key dan state-nya ada
+  // // Ini memerlukan _ProfileScreenState untuk mengekspos metode refreshProfile()
+  // // dan GlobalKey bertipe GlobalKey<_ProfileScreenState> (yang private).
+  // // Solusi lebih baik: ProfileScreen menggunakan Provider atau BLoC,
+  // // dan kita trigger update dari sini.
+
+  // // Untuk sekarang, kita hanya akan memanggil setState di MainShell
+  // // dan berharap ProfileScreen (jika aktif) akan rebuild dan FutureBuilder-nya
+  // // mengambil data terbaru. Ini tidak ideal jika ProfileScreen tidak aktif.
+  // final refreshedProfile =
+  //     await _authService.getUserProfile(); // Ambil profil lagi
+  // if (mounted) {
+  //   if (refreshedProfile != null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Data pengguna telah diperbarui!'),
+  //         duration: Duration(seconds: 2),
+  //       ),
+  //     );
+  //     // Jika Anda punya cara untuk update ProfileScreen secara eksplisit, panggil di sini.
+  //     // Contoh: _profileScreenKey.currentState?.refresh(); // Jika ProfileScreen punya metode refresh()
+  //     // Untuk sekarang, jika ProfileScreen adalah tab aktif, ia akan rebuild saat setState MainShell.
+  //     // Jika tidak, saat dibuka lagi, initState-nya akan fetch data baru.
+  //     setState(() {
+  //       // Mungkin update data user yang disimpan di MainShell jika ada
+  //     });
+  //   } else {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Gagal memperbarui data pengguna.'),
+  //         duration: Duration(seconds: 2),
+  //       ),
+  //     );
+  //   }
+  // }
+  // debugPrint("MainShell: Perintah refresh data pengguna telah diproses.");
+  // }
+
   Future<void> _handleQrFabPress() async {
     if (_isGeneratingQrToken) {
       debugPrint("MainShell: Sedang generate token, mohon tunggu...");
@@ -248,6 +356,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
       debugPrint(
         "MainShell: Scan sukses terdeteksi dari modal, refresh data user diperlukan.",
       );
+      _refreshUserData(); // Buat fungsi baru untuk ini
       // TODO: Panggil metode untuk me-refresh data user (misalnya, poin di HomeScreen atau ProfileScreen)
       // Contoh: Provider.of<UserNotifier>(context, listen: false).fetchUserProfile();
     }
